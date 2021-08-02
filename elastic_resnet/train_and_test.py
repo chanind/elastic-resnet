@@ -1,4 +1,5 @@
 """Train CIFAR10 with PyTorch."""
+from pathlib import Path
 from .Trainer import Trainer
 import torch
 import argparse
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     print("==> Building model..")
     net = ResNet18()
 
-    trainer = Trainer(device, net, args.lr, checkpoint_dir="./checkpoint")
+    trainer = Trainer(device, net, args.lr, checkpoint_dir=Path("./checkpoint"))
     if args.resume:
         trainer.resume_checkpoint()
     trainer.run()
