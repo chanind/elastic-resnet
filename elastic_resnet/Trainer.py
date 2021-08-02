@@ -54,14 +54,14 @@ class Trainer:
             root="./data", train=True, download=True, transform=transform_train
         )
         self.trainloader = torch.utils.data.DataLoader(
-            trainset, batch_size=batch_size, shuffle=True, num_workers=self.num_workers
+            trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers
         )
 
         testset = torchvision.datasets.CIFAR10(
             root="./data", train=False, download=True, transform=transform_test
         )
         self.testloader = torch.utils.data.DataLoader(
-            testset, batch_size=batch_size, shuffle=False, num_workers=self.num_workers
+            testset, batch_size=batch_size, shuffle=False, num_workers=num_workers
         )
         self.reset()
 
