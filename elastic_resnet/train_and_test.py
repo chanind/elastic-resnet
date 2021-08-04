@@ -5,7 +5,7 @@ import torch
 import argparse
 
 from .models.resnet import ResNet18
-from .models.elastic_resnet import ElasticResNet
+from .models.elastic_resnet import ElasticResNet18
 
 
 if __name__ == "__main__":
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # Model
     print("==> Building model..")
-    net = ElasticResNet()
+    net = ElasticResNet18()
 
     trainer = ElasticTrainer(
         device,
