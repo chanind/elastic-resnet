@@ -1,6 +1,6 @@
 import torch
 from torch.nn.functional import batch_norm
-from elastic_resnet.functional.cap_norm import cap_norm
+from elastic_resnet.nn.functional import cap_norm
 
 
 def test_cap_norm_with_high_variance_matches_batch_norm():

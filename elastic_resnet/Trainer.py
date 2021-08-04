@@ -101,17 +101,19 @@ class Trainer:
         train_loss = 0
         correct = 0
         total = 0
+        total_per_epoch = len(self.trainloader) * self.batch_size
 
         with tqdm(
-            total=len(self.trainloader) * self.batch_size,
+            total=total_per_epoch,
             desc=f"Epoch {epoch + 1}",
             unit="img",
         ) as pbar:
+            total_seen = 0
             for (inputs, targets) in self.trainloader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 self.optimizer.zero_grad()
                 outputs = self.net(inputs)
-                loss = self.criterion(outputs, targets)
+                loss = self.criterion(outputs, targets) + self.regularization_loss()
                 loss.backward()
                 self.optimizer.step()
 
@@ -124,6 +126,16 @@ class Trainer:
                     **{"Train Loss": train_loss, "Train Acc": correct / total}
                 )
                 pbar.update(inputs.shape[0])
+                total_seen += inputs.shape[0]
+                self.post_training_loop(epoch * total_per_epoch + total_seen)
+
+    def regularization_loss(self):
+        # overwrite me in subclasses
+        return 0
+
+    def post_training_loop(self, total_seen: int):
+        # overwrite me in subclasses
+        pass
 
     def test_epoch(self, epoch):
         self.net.eval()
@@ -131,8 +143,9 @@ class Trainer:
         correct = 0
         total = 0
         with torch.no_grad():
+            total_per_epoch = len(self.testloader) * self.batch_size
             with tqdm(
-                total=len(self.testloader) * self.batch_size,
+                total=total_per_epoch,
                 desc=f"Epoch {epoch + 1}",
                 unit="img",
             ) as pbar:
@@ -164,3 +177,49 @@ class Trainer:
                 os.mkdir(self.checkpoint_dir)
             torch.save(state, self.checkpoint_dir / "ckpt.pth")
             self.best_acc = acc
+
+
+class ElasticTrainer(Trainer):
+    def __init__(
+        self,
+        device: torch.device,
+        net: torch.nn.Module,
+        lr: float = 0.1,
+        max_iterations: int = 200,
+        checkpoint_dir: Path = Path("./checkpoint"),
+        batch_size: int = 128,
+        num_workers: int = 2,
+        weight_penalty: float = 0.01,
+        channel_penalty: float = 0.1,
+        expand_net_freq: int = 1000,
+    ):
+        super().__init__(
+            self,
+            device,
+            net,
+            lr,
+            max_iterations,
+            checkpoint_dir,
+            batch_size,
+            num_workers,
+        )
+
+        self.weight_penalty = weight_penalty
+        self.channel_penalty = channel_penalty
+        self.expand_net_freq = expand_net_freq
+        self.last_expansion = 0
+
+    def regularization_loss(self):
+        return (
+            self.net.get_hidden_channels_penalty() * self.channel_penalty
+            + self.net.get_conv_weight_penalty() * self.weight_penalty
+        )
+
+    def post_training_loop(self, total_seen: int):
+        if total_seen - self.last_expansion > self.expand_net_freq:
+            self.last_expansion = total_seen
+            self.net.expand()
+            # need to re-init the optimizer since the parameters are different
+            self.optimizer = optim.SGD(
+                self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
+            )

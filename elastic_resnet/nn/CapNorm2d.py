@@ -3,7 +3,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module
 
-from elastic_resnet.functional.cap_norm import cap_norm
+from elastic_resnet.nn.functional import cap_norm
 
 # code based on https://pytorch.org/docs/stable/_modules/torch/nn/modules/batchnorm.html#BatchNorm2d
 
@@ -28,33 +28,13 @@ class _CapNorm(Module):
         device=None,
         dtype=None,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
+        self.factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_features = num_features
         self.eps = eps
         self.momentum = momentum
         self.track_running_stats = track_running_stats
-        if self.track_running_stats:
-            self.register_buffer(
-                "running_mean", torch.zeros(num_features, **factory_kwargs)
-            )
-            self.register_buffer(
-                "running_var", torch.ones(num_features, **factory_kwargs)
-            )
-            self.running_mean: Optional[Tensor]
-            self.running_var: Optional[Tensor]
-            self.register_buffer(
-                "num_batches_tracked",
-                torch.tensor(
-                    0,
-                    dtype=torch.long,
-                    **{k: v for k, v in factory_kwargs.items() if k != "dtype"}
-                ),
-            )
-        else:
-            self.register_buffer("running_mean", None)
-            self.register_buffer("running_var", None)
-            self.register_buffer("num_batches_tracked", None)
+        self.setup_running_stats()
         self.reset_parameters()
 
     def reset_running_stats(self) -> None:
@@ -64,6 +44,30 @@ class _CapNorm(Module):
             self.running_mean.zero_()  # type: ignore[union-attr]
             self.running_var.fill_(1)  # type: ignore[union-attr]
             self.num_batches_tracked.zero_()  # type: ignore[union-attr,operator]
+
+    def setup_running_stats(self) -> None:
+        if self.track_running_stats:
+            self.register_buffer(
+                "running_mean", torch.zeros(self.num_features, **self.factory_kwargs)
+            )
+            self.register_buffer(
+                "running_var", torch.ones(self.num_features, **self.factory_kwargs)
+            )
+            self.running_mean: Optional[Tensor]
+            self.running_var: Optional[Tensor]
+            self.register_buffer(
+                "num_batches_tracked",
+                torch.tensor(
+                    0,
+                    dtype=torch.long,
+                    **{k: v for k, v in self.factory_kwargs.items() if k != "dtype"}
+                ),
+            )
+            self.reset_running_stats()
+        else:
+            self.register_buffer("running_mean", None)
+            self.register_buffer("running_var", None)
+            self.register_buffer("num_batches_tracked", None)
 
     def reset_parameters(self) -> None:
         self.reset_running_stats()
@@ -122,6 +126,12 @@ class _CapNorm(Module):
             momentum=exponential_average_factor,
             eps=self.eps,
         )
+
+    def update_num_features(self, num_features: int) -> None:
+        """Change the number of features during training"""
+        assert self.training, "Can only update the number of features in training mode"
+        self.num_features = num_features
+        self.setup_running_stats()
 
 
 class CapNorm2d(_CapNorm):
