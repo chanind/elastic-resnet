@@ -25,12 +25,13 @@ class ElasticBlock(nn.Module):
         self,
         in_channels,
         out_channels,
-        hidden_channels: float = 2,
+        hidden_channels: float = 2.0,
         stride=1,
-        lock_in_and_out_dims: bool = True,
     ):
         super().__init__()
-        self.hidden_channels = nn.Parameter(hidden_channels)
+        self.hidden_channels = nn.Parameter(
+            torch.tensor(hidden_channels, dtype=torch.float)
+        )
         self.conv1 = ElasticConv2d(
             in_channels,
             int(hidden_channels) + EXTRA_BLOCK_CHANNELS,
@@ -52,9 +53,6 @@ class ElasticBlock(nn.Module):
 
         self.shortcut = None
         if stride != 1 or in_channels != out_channels:
-            assert (
-                not lock_in_and_out_dims
-            ), "in_channels and out_channels must match and stride must be 1 unless lock_in_and_out_dims is False"
             self.shortcut = nn.Sequential(
                 ElasticConv2d(
                     in_channels,
@@ -89,7 +87,7 @@ class ElasticBlock(nn.Module):
         conv2_penalty = torch.sum(conv2_channel_norms * channel_penalty_scaling)
 
         return conv1_penalty + conv2_penalty
-    
+
     def expand(self):
         for block in self.blocks:
             block.expand()

@@ -194,7 +194,6 @@ class ElasticTrainer(Trainer):
         expand_net_freq: int = 1000,
     ):
         super().__init__(
-            self,
             device,
             net,
             lr,
