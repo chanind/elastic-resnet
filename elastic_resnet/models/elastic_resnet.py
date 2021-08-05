@@ -67,11 +67,16 @@ class ElasticBlock(nn.Module):
                 CapNorm2d(out_channels),
             )
 
-    def resize(self):
+    def resize(self) -> bool:
+        """
+        Adjust block size, and return a bool indicating whether any actual resizing was necessary
+        """
         num_hidden_channels = int(self.hidden_channels) + EXTRA_BLOCK_CHANNELS
-        self.conv1.update_channels(out_channels=num_hidden_channels)
-        self.bn1.update_num_features(num_hidden_channels)
-        self.conv2.update_channels(in_channels=num_hidden_channels)
+        res = False
+        res = res or self.conv1.update_channels(out_channels=num_hidden_channels)
+        res = res or self.bn1.update_num_features(num_hidden_channels)
+        res = res or self.conv2.update_channels(in_channels=num_hidden_channels)
+        return res
 
     def get_conv_weight_penalty(self):
         # for the hidden channel, conv1 weight dim 0 and conv2 weight dim 1 is penalized.
@@ -139,9 +144,14 @@ class ElasticResNet(nn.Module):
         penalties = torch.stack([block.hidden_channels for block in self.blocks])
         return torch.sum(penalties)
 
-    def resize(self):
+    def resize(self) -> bool:
+        """
+        Adjust the network size and return a bool indicating whether anything actually changed
+        """
+        res = False
         for block in self.blocks:
-            block.resize()
+            res = res or block.resize()
+        return res
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))

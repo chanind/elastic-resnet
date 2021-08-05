@@ -127,8 +127,11 @@ class _CapNorm(Module):
             eps=self.eps,
         )
 
-    def update_num_features(self, num_features: int) -> None:
-        """Change the number of features during training"""
+    def update_num_features(self, num_features: int) -> bool:
+        """
+        Change the number of features during training
+        Returns a bool indicating whether the number of reatures actually changed size
+        """
         assert self.training, "Can only update the number of features in training mode"
         if num_features != self.num_features:
             # make sure device is set if present
@@ -136,6 +139,8 @@ class _CapNorm(Module):
                 self.factory_kwargs["device"] = self.running_mean.device
             self.num_features = num_features
             self.setup_running_stats()
+            return True
+        return False
 
 
 class CapNorm2d(_CapNorm):

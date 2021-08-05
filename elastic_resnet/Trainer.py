@@ -231,11 +231,12 @@ class ElasticTrainer(Trainer):
     def post_training_loop(self, total_seen: int):
         if total_seen - self.last_expansion > self.resize_net_freq:
             self.last_expansion = total_seen
-            self.net.resize()
-            # need to re-init the optimizer since the parameters are different
-            self.optimizer = optim.SGD(
-                self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
-            )
+            resize_occcurred = self.net.resize()
+            if resize_occcurred:
+                # need to re-init the optimizer since the parameters are different
+                self.optimizer = optim.SGD(
+                    self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
+                )
 
     def extra_training_postfix(self):
         return {"channels": self.net.get_hidden_channels_penalty().item()}
