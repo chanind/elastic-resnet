@@ -130,8 +130,13 @@ class _CapNorm(Module):
     def update_num_features(self, num_features: int) -> None:
         """Change the number of features during training"""
         assert self.training, "Can only update the number of features in training mode"
-        self.num_features = num_features
-        self.setup_running_stats()
+        if num_features != self.num_features:
+            # make sure device is set if present
+            if self.running_mean is not None and self.device is None:
+                self.device = self.running_mean.device
+                self.factory_kwargs["device"] = self.device
+            self.num_features = num_features
+            self.setup_running_stats()
 
 
 class CapNorm2d(_CapNorm):
