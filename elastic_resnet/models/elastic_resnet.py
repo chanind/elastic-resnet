@@ -13,7 +13,9 @@ def scale_elastic_channels(layer: Tensor, target_num_channels: Tensor) -> Tensor
     Channels before target_num_channels should have a weight close to 1, and after should have weight close to 0
     """
     num_channels = layer.shape[1]
-    channel_weights = torch.sigmoid(target_num_channels - torch.arange(num_channels))
+    channel_weights = torch.sigmoid(
+        target_num_channels - torch.arange(num_channels, device=layer.device)
+    )
     return channel_weights[None, :, None, None] * layer
 
 
@@ -76,7 +78,8 @@ class ElasticBlock(nn.Module):
         num_hidden_channels = self.conv1.weight.shape[0]
         # this weighting is the inverse of the channel weight, so we penalize layers more the further out they are
         channel_penalty_scaling = torch.sigmoid(
-            torch.arange(num_hidden_channels) - self.hidden_channels
+            torch.arange(num_hidden_channels, device=self.hidden_channels.device)
+            - self.hidden_channels
         )
 
         # hidden_channels correspond to weight dim 0 for conv1

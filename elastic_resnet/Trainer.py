@@ -127,17 +127,22 @@ class Trainer:
                 pbar.set_postfix(
                     **{
                         "Train Loss": train_loss,
-                        "Reg loss": regularization_loss,
+                        "Reg loss": regularization_loss.item(),
                         "Train Acc": correct / total,
+                        **self.extra_training_postfix(),
                     }
                 )
                 pbar.update(inputs.shape[0])
                 total_seen += inputs.shape[0]
                 self.post_training_loop(epoch * total_per_epoch + total_seen)
 
+    def extra_training_postfix(self):
+        # overwrite me in subclasses
+        return {}
+
     def regularization_loss(self):
         # overwrite me in subclasses
-        return 0
+        return torch.tensor(0.0, device=self.device)
 
     def post_training_loop(self, total_seen: int):
         # overwrite me in subclasses
@@ -231,3 +236,6 @@ class ElasticTrainer(Trainer):
             self.optimizer = optim.SGD(
                 self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
             )
+
+    def extra_training_postfix(self):
+        return {"channels": self.net.get_hidden_channels_penalty()}
