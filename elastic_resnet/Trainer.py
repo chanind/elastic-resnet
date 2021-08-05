@@ -238,4 +238,4 @@ class ElasticTrainer(Trainer):
             )
 
     def extra_training_postfix(self):
-        return {"channels": self.net.get_hidden_channels_penalty()}
+        return {"channels": self.net.get_hidden_channels_penalty().item()}
