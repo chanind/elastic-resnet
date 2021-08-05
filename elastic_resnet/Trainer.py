@@ -72,9 +72,9 @@ class Trainer:
         self.optimizer = optim.SGD(
             self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
         )
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer, T_max=self.max_iterations
-        )
+        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        #     self.optimizer, T_max=self.max_iterations
+        # )
 
     def resume_checkpoint(self):
         # Load checkpoint.
@@ -93,7 +93,7 @@ class Trainer:
         for epoch in range(self.start_epoch, self.start_epoch + 200):
             self.train_epoch(epoch)
             self.test_epoch(epoch)
-            self.scheduler.step()
+            # self.scheduler.step()
 
     def train_epoch(self, epoch):
         print("\nEpoch: %d" % epoch)
