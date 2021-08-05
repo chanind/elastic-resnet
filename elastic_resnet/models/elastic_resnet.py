@@ -74,9 +74,13 @@ class ElasticBlock(nn.Module):
         num_hidden_channels = int(self.hidden_channels) + EXTRA_BLOCK_CHANNELS
         return any(
             [
-                self.conv1.update_channels(out_channels=num_hidden_channels),
+                self.conv1.update_channels(
+                    out_channels=num_hidden_channels, incoming_channels_scale=0.01
+                ),
                 self.bn1.update_num_features(num_hidden_channels),
-                self.conv2.update_channels(in_channels=num_hidden_channels),
+                self.conv2.update_channels(
+                    in_channels=num_hidden_channels, incoming_channels_scale=0.01
+                ),
             ]
         )
 

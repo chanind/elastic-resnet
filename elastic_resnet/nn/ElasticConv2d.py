@@ -5,7 +5,10 @@ from torch.nn import Conv2d, init, Parameter
 # This feels slightly sketchy, since pytorch might change the way Conv2d is implemented in a future version...
 class ElasticConv2d(Conv2d):
     def update_channels(
-        self, in_channels: int = None, out_channels: int = None
+        self,
+        in_channels: int = None,
+        out_channels: int = None,
+        incoming_channels_scale: float = 1.0,
     ) -> bool:
         """
         Updates the number of in and out channels, and returns a bool indicating whether any changes were necessary
@@ -45,7 +48,13 @@ class ElasticConv2d(Conv2d):
                 # taken from https://pytorch.org/docs/stable/_modules/torch/nn/modules/conv.html#Conv2d
                 init.kaiming_uniform_(new_weight_channels, a=math.sqrt(5))
                 self.weight = Parameter(
-                    torch.cat([self.weight.data, new_weight_channels], dim=1)
+                    torch.cat(
+                        [
+                            self.weight.data,
+                            new_weight_channels * incoming_channels_scale,
+                        ],
+                        dim=1,
+                    )
                     .detach()
                     .to(device),
                 )
@@ -68,7 +77,13 @@ class ElasticConv2d(Conv2d):
                 # taken from https://pytorch.org/docs/stable/_modules/torch/nn/modules/conv.html#Conv2d
                 init.kaiming_uniform_(new_weight_channels, a=math.sqrt(5))
                 self.weight = Parameter(
-                    torch.cat([self.weight.data, new_weight_channels], dim=0)
+                    torch.cat(
+                        [
+                            self.weight.data,
+                            new_weight_channels * incoming_channels_scale,
+                        ],
+                        dim=0,
+                    )
                     .detach()
                     .to(device),
                 )
@@ -78,7 +93,12 @@ class ElasticConv2d(Conv2d):
                     new_bias_channels = torch.empty((num_new_channels))
                     init.uniform_(new_bias_channels, -bound, bound)
                     self.bias = Parameter(
-                        torch.cat([self.bias.data, new_bias_channels])
+                        torch.cat(
+                            [
+                                self.bias.data,
+                                new_bias_channels * incoming_channels_scale,
+                            ]
+                        )
                         .detach()
                         .to(device),
                     )
