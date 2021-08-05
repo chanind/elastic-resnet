@@ -113,7 +113,9 @@ class Trainer:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 self.optimizer.zero_grad()
                 outputs = self.net(inputs)
-                loss = self.criterion(outputs, targets) + self.regularization_loss()
+                criterion_loss = self.criterion(outputs, targets)
+                regularization_loss = self.regularization_loss()
+                loss = criterion_loss + regularization_loss
                 loss.backward()
                 self.optimizer.step()
 
@@ -123,7 +125,11 @@ class Trainer:
                 correct += predicted.eq(targets).sum().item()
 
                 pbar.set_postfix(
-                    **{"Train Loss": train_loss, "Train Acc": correct / total}
+                    **{
+                        "Train Loss": train_loss,
+                        "Reg loss": regularization_loss,
+                        "Train Acc": correct / total,
+                    }
                 )
                 pbar.update(inputs.shape[0])
                 total_seen += inputs.shape[0]
@@ -189,8 +195,8 @@ class ElasticTrainer(Trainer):
         checkpoint_dir: Path = Path("./checkpoint"),
         batch_size: int = 128,
         num_workers: int = 2,
-        weight_penalty: float = 0.01,
-        channel_penalty: float = 0.1,
+        weight_penalty: float = 0.001,
+        channel_penalty: float = 0.001,
         expand_net_freq: int = 1000,
     ):
         super().__init__(
@@ -209,10 +215,13 @@ class ElasticTrainer(Trainer):
         self.last_expansion = 0
 
     def regularization_loss(self):
-        return (
+        hidden_channels_penalty = (
             self.net.get_hidden_channels_penalty() * self.channel_penalty
-            + self.net.get_conv_weight_penalty() * self.weight_penalty
         )
+        conv_net_weight_penalty = (
+            self.net.get_conv_weight_penalty() * self.weight_penalty
+        )
+        return hidden_channels_penalty + conv_net_weight_penalty
 
     def post_training_loop(self, total_seen: int):
         if total_seen - self.last_expansion > self.expand_net_freq:

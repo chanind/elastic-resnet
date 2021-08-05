@@ -25,31 +25,32 @@ class ElasticBlock(nn.Module):
         self,
         in_channels,
         out_channels,
-        hidden_channels: float = 2.0,
+        initial_hidden_channels: float = 2.0,
         stride=1,
     ):
         super().__init__()
         self.hidden_channels = nn.Parameter(
-            torch.tensor(hidden_channels, dtype=torch.float)
+            torch.tensor(initial_hidden_channels, dtype=torch.float)
         )
+        expanded_hidden_channels = int(initial_hidden_channels) + EXTRA_BLOCK_CHANNELS
         self.conv1 = ElasticConv2d(
             in_channels,
-            int(hidden_channels) + EXTRA_BLOCK_CHANNELS,
+            expanded_hidden_channels,
             kernel_size=3,
             stride=stride,
             padding=1,
             bias=False,
         )
-        self.bn1 = CapNorm2d(hidden_channels + EXTRA_BLOCK_CHANNELS)
+        self.bn1 = CapNorm2d(expanded_hidden_channels)
         self.conv2 = ElasticConv2d(
-            hidden_channels + EXTRA_BLOCK_CHANNELS,
+            expanded_hidden_channels,
             out_channels,
             kernel_size=3,
             stride=1,
             padding=1,
             bias=False,
         )
-        self.bn2 = CapNorm2d(hidden_channels)
+        self.bn2 = CapNorm2d(out_channels)
 
         self.shortcut = None
         if stride != 1 or in_channels != out_channels:
@@ -79,18 +80,14 @@ class ElasticBlock(nn.Module):
         )
 
         # hidden_channels correspond to weight dim 0 for conv1
-        conv1_channel_norms = LA.vector_norm(self.conv1.weight, dims=(1, 2, 3))
+        conv1_channel_norms = LA.vector_norm(self.conv1.weight, dim=(1, 2, 3))
         conv1_penalty = torch.sum(conv1_channel_norms * channel_penalty_scaling)
 
         # hidden_channels correspond to weight dim 1 for conv2
-        conv2_channel_norms = LA.vector_norm(self.conv2.weight, dims=(0, 2, 3))
+        conv2_channel_norms = LA.vector_norm(self.conv2.weight, dim=(0, 2, 3))
         conv2_penalty = torch.sum(conv2_channel_norms * channel_penalty_scaling)
 
         return conv1_penalty + conv2_penalty
-
-    def expand(self):
-        for block in self.blocks:
-            block.expand()
 
     def forward(self, x):
         conv1 = scale_elastic_channels(self.conv1(x), self.hidden_channels)
@@ -122,20 +119,26 @@ class ElasticResNet(nn.Module):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
-            block = ElasticBlock(self.in_channels, channels, stride)
+            block = ElasticBlock(self.in_channels, channels, stride=stride)
             layers.append(block)
             self.blocks.append(block)
             self.in_channels = channels
         return nn.Sequential(*layers)
 
     def get_conv_weight_penalty(self):
-        penalties = [block.get_conv_weight_penalty() for block in self.blocks]
+        penalties = torch.stack(
+            [block.get_conv_weight_penalty() for block in self.blocks]
+        )
         return torch.sum(penalties)
 
     def get_hidden_channels_penalty(self):
         # directly penalize the number of hidden channels in the block
-        penalties = [block.hidden_channels for block in self.blocks]
+        penalties = torch.stack([block.hidden_channels for block in self.blocks])
         return torch.sum(penalties)
+
+    def expand(self):
+        for block in self.blocks:
+            block.expand()
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))

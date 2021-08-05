@@ -1,6 +1,6 @@
 import math
 import torch
-from torch.nn import Conv2d, init
+from torch.nn import Conv2d, init, Parameter
 
 # This feels slightly sketchy, since pytorch might change the way Conv2d is implemented in a future version...
 class ElasticConv2d(Conv2d):
@@ -31,9 +31,9 @@ class ElasticConv2d(Conv2d):
             if new_in_channels < self.in_channels:
                 print(f"shrinking in_channels {self.in_channels} -> {new_in_channels}")
                 # no need to do weight init when shrinking dims
-                self.weight.data = self.weight.data[
-                    :, : (new_in_channels // self.groups), :
-                ]
+                self.weight = Parameter(
+                    self.weight.data[:, : (new_in_channels // self.groups), :].detach()
+                )
             elif new_in_channels > self.in_channels:
                 print(f"growing in_channels {self.in_channels} -> {new_in_channels}")
                 num_new_channels = new_in_channels - self.in_channels
@@ -42,8 +42,8 @@ class ElasticConv2d(Conv2d):
                 )
                 # taken from https://pytorch.org/docs/stable/_modules/torch/nn/modules/conv.html#Conv2d
                 init.kaiming_uniform_(new_weight_channels, a=math.sqrt(5))
-                self.weight.data = torch.cat(
-                    [self.weight.data, new_weight_channels], dim=1
+                self.weight = Parameter(
+                    torch.cat([self.weight.data, new_weight_channels], dim=1).detach()
                 )
 
             if new_out_channels < self.out_channels:
@@ -51,9 +51,11 @@ class ElasticConv2d(Conv2d):
                     f"shrinking out_channels {self.out_channels} -> {new_out_channels}"
                 )
                 # no need to do weight init when shrinking dims
-                self.weight.data = self.weight.data[:(new_out_channels), :, :]
+                self.weight = Parameter(
+                    self.weight.data[:(new_out_channels), :, :].detach()
+                )
                 if self.bias is not None:
-                    self.bias.data = self.bias.data[:(new_out_channels)]
+                    self.bias = Parameter(self.bias.data[:(new_out_channels)].detach())
             elif new_out_channels > self.out_channels:
                 print(f"growing out_channels {self.out_channels} -> {new_out_channels}")
                 num_new_channels = new_out_channels - self.out_channels
@@ -62,15 +64,17 @@ class ElasticConv2d(Conv2d):
                 )
                 # taken from https://pytorch.org/docs/stable/_modules/torch/nn/modules/conv.html#Conv2d
                 init.kaiming_uniform_(new_weight_channels, a=math.sqrt(5))
-                self.weight.data = torch.cat(
-                    [self.weight.data, new_weight_channels], dim=0
+                self.weight = Parameter(
+                    torch.cat([self.weight.data, new_weight_channels], dim=0).detach()
                 )
                 if self.bias is not None:
                     fan_in, _ = init._calculate_fan_in_and_fan_out(new_weight_channels)
                     bound = 1 / math.sqrt(fan_in)
                     new_bias_channels = torch.empty((num_new_channels))
                     init.uniform_(new_bias_channels, -bound, bound)
-                    self.bias.data = torch.cat([self.bias.data, new_bias_channels])
+                    self.bias = Parameter(
+                        torch.cat([self.bias.data, new_bias_channels]).detach()
+                    )
 
         self.in_channels = new_in_channels
         self.out_channels = new_out_channels
