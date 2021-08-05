@@ -65,7 +65,7 @@ class ElasticBlock(nn.Module):
                 CapNorm2d(out_channels),
             )
 
-    def expand(self):
+    def resize(self):
         num_hidden_channels = int(self.hidden_channels) + EXTRA_BLOCK_CHANNELS
         self.conv1.update_channels(out_channels=num_hidden_channels)
         self.bn1.update_num_features(num_hidden_channels)
@@ -136,9 +136,9 @@ class ElasticResNet(nn.Module):
         penalties = torch.stack([block.hidden_channels for block in self.blocks])
         return torch.sum(penalties)
 
-    def expand(self):
+    def resize(self):
         for block in self.blocks:
-            block.expand()
+            block.resize()
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))

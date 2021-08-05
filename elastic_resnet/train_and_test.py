@@ -11,6 +11,15 @@ from .models.elastic_resnet import ElasticResNet18
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch CIFAR10 Training")
     parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
+    parser.add_argument("--cp", default=0.001, type=float, help="channel penalty")
+    parser.add_argument("--wp", default=0.001, type=float, help="weight penalty")
+    parser.add_argument(
+        "--resize_freq",
+        default=1000,
+        type=int,
+        help="resize network every X training examples",
+    )
+
     parser.add_argument(
         "--resume", "-r", action="store_true", help="resume from checkpoint"
     )
@@ -27,9 +36,9 @@ if __name__ == "__main__":
             net,
             args.lr,
             checkpoint_dir=Path("./checkpoint"),
-            weight_penalty=0.001,
-            channel_penalty=0.001,
-            expand_net_freq=1000,
+            weight_penalty=args.wp,
+            channel_penalty=args.cp,
+            resize_net_freq=args.resize_freq,
         )
     else:
         net = ResNet18()

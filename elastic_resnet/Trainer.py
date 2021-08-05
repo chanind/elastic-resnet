@@ -197,7 +197,7 @@ class ElasticTrainer(Trainer):
         num_workers: int = 2,
         weight_penalty: float = 0.001,
         channel_penalty: float = 0.001,
-        expand_net_freq: int = 1000,
+        resize_net_freq: int = 1000,
     ):
         super().__init__(
             device,
@@ -211,7 +211,7 @@ class ElasticTrainer(Trainer):
 
         self.weight_penalty = weight_penalty
         self.channel_penalty = channel_penalty
-        self.expand_net_freq = expand_net_freq
+        self.resize_net_freq = resize_net_freq
         self.last_expansion = 0
 
     def regularization_loss(self):
@@ -224,9 +224,9 @@ class ElasticTrainer(Trainer):
         return hidden_channels_penalty + conv_net_weight_penalty
 
     def post_training_loop(self, total_seen: int):
-        if total_seen - self.last_expansion > self.expand_net_freq:
+        if total_seen - self.last_expansion > self.resize_net_freq:
             self.last_expansion = total_seen
-            self.net.expand()
+            self.net.resize()
             # need to re-init the optimizer since the parameters are different
             self.optimizer = optim.SGD(
                 self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
