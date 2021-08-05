@@ -30,7 +30,6 @@ class ElasticConv2d(Conv2d):
         with torch.no_grad():
             device = self.weight.device
             if new_in_channels < self.in_channels:
-                print(f"shrinking in_channels {self.in_channels} -> {new_in_channels}")
                 # no need to do weight init when shrinking dims
                 self.weight = Parameter(
                     self.weight.data[:, : (new_in_channels // self.groups), :]
@@ -38,7 +37,6 @@ class ElasticConv2d(Conv2d):
                     .to(device),
                 )
             elif new_in_channels > self.in_channels:
-                print(f"growing in_channels {self.in_channels} -> {new_in_channels}")
                 num_new_channels = new_in_channels - self.in_channels
                 new_weight_channels = torch.empty(
                     (self.weight.shape[0], num_new_channels, *self.weight.shape[2:]),
@@ -53,9 +51,6 @@ class ElasticConv2d(Conv2d):
                 )
 
             if new_out_channels < self.out_channels:
-                print(
-                    f"shrinking out_channels {self.out_channels} -> {new_out_channels}"
-                )
                 # no need to do weight init when shrinking dims
                 self.weight = Parameter(
                     self.weight.data[:(new_out_channels), :, :].detach().to(device),
@@ -65,7 +60,6 @@ class ElasticConv2d(Conv2d):
                         self.bias.data[:(new_out_channels)].detach().to(device),
                     )
             elif new_out_channels > self.out_channels:
-                print(f"growing out_channels {self.out_channels} -> {new_out_channels}")
                 num_new_channels = new_out_channels - self.out_channels
                 new_weight_channels = torch.empty(
                     (num_new_channels, self.weight.shape[1], *self.weight.shape[2:]),
