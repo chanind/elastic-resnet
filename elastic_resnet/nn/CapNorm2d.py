@@ -145,7 +145,7 @@ class _CapNorm(Module):
 
 class CapNorm2d(_CapNorm):
     r"""
-    replaces each element with `z - mean / max(1, signma)` during training. During test, functionality is identical to BatchNorm2d sans weight and bias
+    replaces each element with `z - mean / max(1, signma)`.
 
     Philipp, George, and Jaime G. Carbonell. "Nonparametric neural networks." arXiv preprint arXiv:1712.05440 (2017).
     """

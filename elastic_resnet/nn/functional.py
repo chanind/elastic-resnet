@@ -13,8 +13,7 @@ def cap_norm(
     eps: float = 1e-5,
 ) -> Tensor:
     """
-    Batch norm with no weight or bias, which only normalizes variance if it's greater than 1 while in training
-    When not training, this acts identically to batch_norm sans weight and bias
+    Batch norm with no weight or bias, which only normalizes variance if it's greater than 1
 
     Philipp, George, and Jaime G. Carbonell. "Nonparametric neural networks." arXiv preprint arXiv:1712.05440 (2017).
     """
@@ -28,5 +27,10 @@ def cap_norm(
         return (input - mean) / torch.sqrt(capped_var)
 
     return batch_norm(
-        input, running_mean, running_var, training=training, momentum=momentum, eps=eps
+        input,
+        running_mean,
+        torch.clamp(running_var, min=1.0) if running_var else None,
+        training=training,
+        momentum=momentum,
+        eps=eps,
     )
