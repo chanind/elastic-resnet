@@ -32,7 +32,7 @@ class _CapNorm(Module):
         self.num_features = num_features
         self.momentum = momentum
         self.track_running_stats = track_running_stats
-        self.setup_running_stats()
+        self._setup_running_stats()
         self.reset_parameters()
 
     def reset_running_stats(self) -> None:
@@ -43,7 +43,7 @@ class _CapNorm(Module):
             self.running_var.fill_(1)  # type: ignore[union-attr]
             self.num_batches_tracked.zero_()  # type: ignore[union-attr,operator]
 
-    def setup_running_stats(self) -> None:
+    def _setup_running_stats(self) -> None:
         if self.track_running_stats:
             self.register_buffer(
                 "running_mean", torch.zeros(self.num_features, **self.factory_kwargs)
@@ -131,13 +131,54 @@ class _CapNorm(Module):
         """
         assert self.training, "Can only update the number of features in training mode"
         if num_features != self.num_features:
-            # make sure device is set if present
-            if self.running_mean is not None and self.factory_kwargs["device"] is None:
-                self.factory_kwargs["device"] = self.running_mean.device
+            # need to resize running stats arrays
+            if self.track_running_stats:
+                self._resize_running_stats(num_features)
             self.num_features = num_features
-            self.setup_running_stats()
             return True
         return False
+
+    def _resize_running_stats(self, num_features: int) -> None:
+        device = self.running_mean.device
+        with torch.no_grad():
+            if num_features < self.num_features:
+                # shrinking the network, so no new init needed
+                self.register_buffer(
+                    "running_mean",
+                    self.running_mean[0 : self.num_features].clone().detach(),
+                )
+                self.register_buffer(
+                    "running_var",
+                    self.running_var[0 : self.num_features].clone().detach(),
+                )
+            else:
+                num_new_features = num_features - self.num_features
+                self.register_buffer(
+                    "running_mean",
+                    torch.cat(
+                        [
+                            self.running_mean.clone().detach(),
+                            torch.zeros(
+                                num_new_features,
+                                device=device,
+                                dtype=self.running_mean.dtype,
+                            ),
+                        ]
+                    ),
+                )
+                self.register_buffer(
+                    "running_var",
+                    torch.cat(
+                        [
+                            self.running_var.clone().detach(),
+                            torch.ones(
+                                num_new_features,
+                                device=device,
+                                dtype=self.running_var.dtype,
+                            ),
+                        ]
+                    ),
+                )
 
 
 class CapNorm2d(_CapNorm):
