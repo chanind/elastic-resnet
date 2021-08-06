@@ -4,6 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import Conv2d, init, Parameter
 from torch.nn.functional import relu
+from torch import linalg as LA
 
 
 class ElasticConv2d(Conv2d):
@@ -29,7 +30,7 @@ class ElasticConv2d(Conv2d):
         excess_weights = relu(
             self.weight - channel_caps[None, :, None, None], inplace=True
         )
-        return torch.sum(excess_weights)
+        return LA.vector_norm(excess_weights)
 
     def get_out_channel_weight_penalty(
         self,
@@ -39,7 +40,7 @@ class ElasticConv2d(Conv2d):
         excess_weights = relu(
             self.weight - channel_caps[:, None, None, None], inplace=True
         )
-        return torch.sum(excess_weights)
+        return LA.vector_norm(excess_weights)
 
     def update_channels(
         self,
