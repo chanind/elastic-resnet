@@ -17,17 +17,14 @@ def cap_norm(
     Philipp, George, and Jaime G. Carbonell. "Nonparametric neural networks." arXiv preprint arXiv:1712.05440 (2017).
     """
     remove_dims = [dim for dim in range(input.dim()) if dim != 1]
-    target_shape = (1, -1, *[1 for _ in range(input.dim() - 2)])
-    var = torch.var(input, dim=remove_dims, unbiased=False).view(target_shape)
-    mean = torch.mean(input, dim=remove_dims).view(target_shape)
 
     var = running_var
     mean = running_mean
 
     if training or var is None:
-        var = torch.var(input, dim=remove_dims, unbiased=False).view(target_shape)
+        var = input.var(remove_dims, unbiased=False)
     if training or mean is None:
-        mean = torch.mean(input, dim=remove_dims).view(target_shape)
+        mean = input.mean(remove_dims)
 
     if training:
         with torch.no_grad():
@@ -42,4 +39,6 @@ def cap_norm(
                 )
 
     capped_var = torch.clamp(var, min=1.0)
-    return (input - mean) / torch.sqrt(capped_var)
+    return (input - mean[None, :, None, None]) / torch.sqrt(
+        capped_var[None, :, None, None]
+    )
