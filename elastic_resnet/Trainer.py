@@ -224,7 +224,6 @@ class ElasticTrainer(Trainer):
         return hidden_channels_penalty
 
     def post_training_loop(self, total_seen: int):
-        self.net.clip_weights()
         if total_seen - self.last_expansion > self.resize_net_freq:
             self.last_expansion = total_seen
             resize_occcurred = self.net.resize()
@@ -233,6 +232,7 @@ class ElasticTrainer(Trainer):
                 self.optimizer = optim.SGD(
                     self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
                 )
+        self.net.clip_weights()
 
     def extra_training_postfix(self):
         return {"channels": self.net.get_hidden_channels_penalty().item()}
