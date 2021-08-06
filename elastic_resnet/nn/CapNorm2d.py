@@ -145,11 +145,11 @@ class _CapNorm(Module):
                 # shrinking the network, so no new init needed
                 self.register_buffer(
                     "running_mean",
-                    self.running_mean[0 : self.num_features].clone().detach(),
+                    self.running_mean[0 : num_features].clone().detach(),
                 )
                 self.register_buffer(
                     "running_var",
-                    self.running_var[0 : self.num_features].clone().detach(),
+                    self.running_var[0 : num_features].clone().detach(),
                 )
             else:
                 num_new_features = num_features - self.num_features
