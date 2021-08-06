@@ -30,9 +30,10 @@ def cap_norm(
         with torch.no_grad():
             # stats tracking inspired by https://github.com/ptrblck/pytorch_misc/blob/master/batch_norm_manual.py
             n = input.numel() / input.size(1)
-            if running_mean is not None:
+            # not sure how these sizes can get out of sync, but it seems to happen occasionally...
+            if running_mean is not None and running_mean.shape == mean.shape:
                 running_mean.data = momentum * mean + (1 - momentum) * running_mean.data
-            if running_var is not None:
+            if running_var is not None and running_var.shape == var.shape:
                 # update running_var with unbiased var
                 running_var.data = (
                     momentum * var * n / (n - 1) + (1 - momentum) * running_var.data
