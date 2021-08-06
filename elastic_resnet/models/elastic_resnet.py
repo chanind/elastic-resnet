@@ -25,7 +25,6 @@ def cap_elastic_channels(
 
 
 EXTRA_BLOCK_CHANNELS = 3
-MAX_CAP_VAL = 5.0
 
 
 class ElasticBlock(nn.Module):
@@ -92,12 +91,9 @@ class ElasticBlock(nn.Module):
 
     def get_hidden_channel_caps(self):
         num_channels = self.bn1.num_features
-        channel_caps = (
-            torch.sigmoid(
-                self.hidden_channels
-                - torch.arange(num_channels, device=self.hidden_channels.device)
-            )
-            * MAX_CAP_VAL
+        channel_caps = torch.sigmoid(
+            self.hidden_channels
+            - torch.arange(num_channels, device=self.hidden_channels.device)
         )
         return channel_caps
 
