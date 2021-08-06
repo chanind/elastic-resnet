@@ -14,14 +14,24 @@ class ElasticConv2d(Conv2d):
         out_channel_caps: Optional[Tensor] = None,
     ) -> Tensor:
         weight = self.weight
-        bias = self.bias
         if in_channel_caps is not None:
             weight = torch.minimum(weight, in_channel_caps[None, :, None, None])
         if out_channel_caps is not None:
             weight = torch.minimum(weight, out_channel_caps[:, None, None, None])
-            if bias is not None:
-                bias = torch.minimum(bias, out_channel_caps)
-        return self._conv_forward(input, weight, bias)
+        return self._conv_forward(input, weight, self.bias)
+
+    def clip_channel_weights(
+        self,
+        in_channel_caps: Optional[Tensor] = None,
+        out_channel_caps: Optional[Tensor] = None,
+    ):
+        weight = self.weight
+        with torch.no_grad():
+            if in_channel_caps is not None:
+                weight = torch.minimum(weight, in_channel_caps[None, :, None, None])
+            if out_channel_caps is not None:
+                weight = torch.minimum(weight, out_channel_caps[:, None, None, None])
+            self.weight.copy_(weight)
 
     def update_channels(
         self,

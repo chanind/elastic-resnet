@@ -79,13 +79,9 @@ class ElasticBlock(nn.Module):
         num_hidden_channels = int(self.hidden_channels) + EXTRA_BLOCK_CHANNELS
         return any(
             [
-                self.conv1.update_channels(
-                    out_channels=num_hidden_channels, incoming_channels_scale=0.01
-                ),
+                self.conv1.update_channels(out_channels=num_hidden_channels),
                 self.bn1.update_num_features(num_hidden_channels),
-                self.conv2.update_channels(
-                    in_channels=num_hidden_channels, incoming_channels_scale=0.01
-                ),
+                self.conv2.update_channels(in_channels=num_hidden_channels),
             ]
         )
 
@@ -108,6 +104,11 @@ class ElasticBlock(nn.Module):
             out += x
         out = F.relu(out)
         return out
+
+    def clip_channel_weights(self):
+        channel_caps = self.get_hidden_channel_caps()
+        self.conv1.clip_channel_weights(out_channel_caps=channel_caps)
+        self.conv2.clip_channel_weights(in_channel_caps=channel_caps)
 
 
 class ElasticResNet(nn.Module):
@@ -144,6 +145,9 @@ class ElasticResNet(nn.Module):
         Adjust the network size and return a bool indicating whether anything actually changed
         """
         return any([block.resize() for block in self.blocks])
+
+    def clip_weights(self):
+        [block.clip_channel_weights() for block in self.blocks]
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))

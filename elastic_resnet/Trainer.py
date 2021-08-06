@@ -224,6 +224,7 @@ class ElasticTrainer(Trainer):
         return hidden_channels_penalty
 
     def post_training_loop(self, total_seen: int):
+        self.net.clip_weights()
         if total_seen - self.last_expansion > self.resize_net_freq:
             self.last_expansion = total_seen
             resize_occcurred = self.net.resize()
