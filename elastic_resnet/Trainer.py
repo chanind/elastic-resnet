@@ -215,6 +215,7 @@ class ElasticTrainer(Trainer):
         )
 
         self.channel_penalty = channel_penalty
+        self.weight_penalty = weight_penalty
         self.resize_net_freq = resize_net_freq
         self.last_expansion = 0
 
