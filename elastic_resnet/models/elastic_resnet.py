@@ -24,7 +24,7 @@ def cap_elastic_channels(
     return torch.minimum(channel_caps[None, :, None, None], layer)
 
 
-EXTRA_BLOCK_CHANNELS = 3
+EXTRA_BLOCK_CHANNELS = 10
 
 
 class ElasticBlock(nn.Module):
