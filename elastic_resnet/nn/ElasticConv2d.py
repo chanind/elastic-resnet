@@ -2,7 +2,7 @@ import math
 from typing import Optional
 import torch
 from torch import Tensor
-from torch.nn import Conv2d, init, Parameter
+from torch.nn import Conv2d, init, Parameter, ReLU
 
 
 class ElasticConv2d(Conv2d):
@@ -20,18 +20,23 @@ class ElasticConv2d(Conv2d):
             weight = torch.minimum(weight, out_channel_caps[:, None, None, None])
         return self._conv_forward(input, weight, self.bias)
 
-    def clip_channel_weights(
+    def get_in_channel_weight_penalty(
         self,
-        in_channel_caps: Optional[Tensor] = None,
-        out_channel_caps: Optional[Tensor] = None,
+        channel_caps: Tensor,
     ):
         weight = self.weight
-        with torch.no_grad():
-            if in_channel_caps is not None:
-                weight = torch.minimum(weight, in_channel_caps[None, :, None, None])
-            if out_channel_caps is not None:
-                weight = torch.minimum(weight, out_channel_caps[:, None, None, None])
-            self.weight.copy_(weight)
+        # only penalize differences > 0, so use relu to cut off the negatives
+        excess_weights = ReLU(weight - channel_caps[None, :, None, None], inplace=True)
+        return torch.sum(excess_weights)
+
+    def get_out_channel_weight_penalty(
+        self,
+        channel_caps: Tensor,
+    ):
+        weight = self.weight
+        # only penalize differences > 0, so use relu to cut off the negatives
+        excess_weights = ReLU(weight - channel_caps[:, None, None, None], inplace=True)
+        return torch.sum(excess_weights)
 
     def update_channels(
         self,

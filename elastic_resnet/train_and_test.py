@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch CIFAR10 Training")
     parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
     parser.add_argument("--cp", default=0.001, type=float, help="channel penalty")
+    parser.add_argument("--wp", default=0.001, type=float, help="weight penalty")
     parser.add_argument(
         "--resize_freq",
         default=1000,
@@ -36,6 +37,7 @@ if __name__ == "__main__":
             args.lr,
             checkpoint_dir=Path("./checkpoint"),
             channel_penalty=args.cp,
+            weight_penalty=args.wp,
             resize_net_freq=args.resize_freq,
         )
     else:

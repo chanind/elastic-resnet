@@ -201,6 +201,7 @@ class ElasticTrainer(Trainer):
         batch_size: int = 128,
         num_workers: int = 2,
         channel_penalty: float = 0.001,
+        weight_penalty: float = 0.001,
         resize_net_freq: int = 1000,
     ):
         super().__init__(
@@ -221,7 +222,10 @@ class ElasticTrainer(Trainer):
         hidden_channels_penalty = (
             self.net.get_hidden_channels_penalty() * self.channel_penalty
         )
-        return hidden_channels_penalty
+        conv_net_weight_penalty = (
+            self.net.get_conv_weight_penalty() * self.weight_penalty
+        )
+        return hidden_channels_penalty + conv_net_weight_penalty
 
     def post_training_loop(self, total_seen: int):
         if total_seen - self.last_expansion > self.resize_net_freq:
@@ -232,7 +236,6 @@ class ElasticTrainer(Trainer):
                 self.optimizer = optim.SGD(
                     self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
                 )
-        self.net.clip_weights()
 
     def extra_training_postfix(self):
         return {"channels": self.net.get_hidden_channels_penalty().item()}

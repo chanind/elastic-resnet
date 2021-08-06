@@ -7,24 +7,7 @@ import torch.nn.functional as F
 from elastic_resnet.nn import CapNorm2d, ElasticConv2d
 
 
-def cap_elastic_channels(
-    layer: Tensor, target_num_channels: Tensor, max_val=5.0
-) -> Tensor:
-    """
-    Caps each channel in the layer according to how early the channel is relative to the target_num_channels using a sigmoid.
-    Channels before target_num_channels should have a weight close to 1, and after should have weight close to 0
-    """
-    num_channels = layer.shape[1]
-    channel_caps = (
-        torch.sigmoid(
-            target_num_channels - torch.arange(num_channels, device=layer.device)
-        )
-        * max_val
-    )
-    return torch.minimum(channel_caps[None, :, None, None], layer)
-
-
-EXTRA_BLOCK_CHANNELS = 10
+EXTRA_BLOCK_CHANNELS = 5
 
 
 class ElasticBlock(nn.Module):
@@ -79,9 +62,13 @@ class ElasticBlock(nn.Module):
         num_hidden_channels = int(self.hidden_channels) + EXTRA_BLOCK_CHANNELS
         return any(
             [
-                self.conv1.update_channels(out_channels=num_hidden_channels),
+                self.conv1.update_channels(
+                    out_channels=num_hidden_channels, incoming_channels_scale=0.01
+                ),
                 self.bn1.update_num_features(num_hidden_channels),
-                self.conv2.update_channels(in_channels=num_hidden_channels),
+                self.conv2.update_channels(
+                    in_channels=num_hidden_channels, incoming_channels_scale=0.01
+                ),
             ]
         )
 
@@ -94,10 +81,9 @@ class ElasticBlock(nn.Module):
         return channel_caps
 
     def forward(self, x):
-        channel_caps = self.get_hidden_channel_caps()
-        conv1 = self.conv1(x, out_channel_caps=channel_caps)
+        conv1 = self.conv1(x)
         out = F.relu(self.bn1(conv1))
-        out = self.bn2(self.conv2(out, in_channel_caps=channel_caps))
+        out = self.bn2(self.conv2(out))
         if self.shortcut:
             out += self.shortcut(x)
         else:
@@ -105,10 +91,11 @@ class ElasticBlock(nn.Module):
         out = F.relu(out)
         return out
 
-    def clip_channel_weights(self):
+    def get_conv_weight_penalty(self):
         channel_caps = self.get_hidden_channel_caps()
-        self.conv1.clip_channel_weights(out_channel_caps=channel_caps)
-        self.conv2.clip_channel_weights(in_channel_caps=channel_caps)
+        conv1_penalty = self.conv1.get_out_channel_weight_penalty(channel_caps)
+        conv2_penalty = self.conv1.get_in_channel_weight_penalty(channel_caps)
+        return conv1_penalty + conv2_penalty
 
 
 class ElasticResNet(nn.Module):
@@ -159,6 +146,12 @@ class ElasticResNet(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
+
+    def get_conv_weight_penalty(self):
+        penalties = torch.stack(
+            [block.get_conv_weight_penalty() for block in self.blocks]
+        )
+        return torch.sum(penalties)
 
 
 def ElasticResNet18():
