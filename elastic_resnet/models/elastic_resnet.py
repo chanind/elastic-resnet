@@ -94,7 +94,7 @@ class ElasticBlock(nn.Module):
     def get_conv_weight_penalty(self):
         channel_caps = self.get_hidden_channel_caps()
         conv1_penalty = self.conv1.get_out_channel_weight_penalty(channel_caps)
-        conv2_penalty = self.conv1.get_in_channel_weight_penalty(channel_caps)
+        conv2_penalty = self.conv2.get_in_channel_weight_penalty(channel_caps)
         return conv1_penalty + conv2_penalty
 
 

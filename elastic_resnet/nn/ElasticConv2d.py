@@ -25,18 +25,20 @@ class ElasticConv2d(Conv2d):
         self,
         channel_caps: Tensor,
     ):
-        weight = self.weight
         # only penalize differences > 0, so use relu to cut off the negatives
-        excess_weights = relu(weight - channel_caps[None, :, None, None], inplace=True)
+        excess_weights = relu(
+            self.weight - channel_caps[None, :, None, None], inplace=True
+        )
         return torch.sum(excess_weights)
 
     def get_out_channel_weight_penalty(
         self,
         channel_caps: Tensor,
     ):
-        weight = self.weight
         # only penalize differences > 0, so use relu to cut off the negatives
-        excess_weights = relu(weight - channel_caps[:, None, None, None], inplace=True)
+        excess_weights = relu(
+            self.weight - channel_caps[:, None, None, None], inplace=True
+        )
         return torch.sum(excess_weights)
 
     def update_channels(
