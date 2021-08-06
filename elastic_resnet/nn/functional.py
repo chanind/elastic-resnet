@@ -26,10 +26,14 @@ def cap_norm(
         capped_var = torch.clamp(var, min=1.0)
         return (input - mean) / torch.sqrt(capped_var)
 
+    capped_running_var = None
+    if running_var is not None:
+        capped_running_var = torch.clamp(running_var, min=1.0)
+
     return batch_norm(
         input,
         running_mean,
-        torch.clamp(running_var, min=1.0) if running_var else None,
+        capped_running_var,
         training=training,
         momentum=momentum,
         eps=eps,
