@@ -200,7 +200,6 @@ class ElasticTrainer(Trainer):
         checkpoint_dir: Path = Path("./checkpoint"),
         batch_size: int = 128,
         num_workers: int = 2,
-        weight_penalty: float = 0.001,
         channel_penalty: float = 0.001,
         resize_net_freq: int = 1000,
     ):
@@ -214,7 +213,6 @@ class ElasticTrainer(Trainer):
             num_workers,
         )
 
-        self.weight_penalty = weight_penalty
         self.channel_penalty = channel_penalty
         self.resize_net_freq = resize_net_freq
         self.last_expansion = 0
@@ -223,10 +221,7 @@ class ElasticTrainer(Trainer):
         hidden_channels_penalty = (
             self.net.get_hidden_channels_penalty() * self.channel_penalty
         )
-        conv_net_weight_penalty = (
-            self.net.get_conv_weight_penalty() * self.weight_penalty
-        )
-        return hidden_channels_penalty + conv_net_weight_penalty
+        return hidden_channels_penalty
 
     def post_training_loop(self, total_seen: int):
         if total_seen - self.last_expansion > self.resize_net_freq:

@@ -7,19 +7,25 @@ import torch.nn.functional as F
 from elastic_resnet.nn import CapNorm2d, ElasticConv2d
 
 
-def scale_elastic_channels(layer: Tensor, target_num_channels: Tensor) -> Tensor:
+def cap_elastic_channels(
+    layer: Tensor, target_num_channels: Tensor, max_val=5.0
+) -> Tensor:
     """
-    Weights each channel in the layer according to how early the channel is relative to the target_num_channels using a sigmoid.
+    Caps each channel in the layer according to how early the channel is relative to the target_num_channels using a sigmoid.
     Channels before target_num_channels should have a weight close to 1, and after should have weight close to 0
     """
     num_channels = layer.shape[1]
-    channel_weights = torch.sigmoid(
-        target_num_channels - torch.arange(num_channels, device=layer.device)
+    channel_caps = (
+        torch.sigmoid(
+            target_num_channels - torch.arange(num_channels, device=layer.device)
+        )
+        * max_val
     )
-    return channel_weights[None, :, None, None] * layer
+    return torch.minimum(channel_caps[None, :, None, None], layer)
 
 
 EXTRA_BLOCK_CHANNELS = 3
+MAX_CAP_VAL = 5.0
 
 
 class ElasticBlock(nn.Module):
@@ -84,29 +90,22 @@ class ElasticBlock(nn.Module):
             ]
         )
 
-    def get_conv_weight_penalty(self):
-        # for the hidden channel, conv1 weight dim 0 and conv2 weight dim 1 is penalized.
-        num_hidden_channels = self.conv1.weight.shape[0]
-        # this weighting is the inverse of the channel weight, so we penalize layers more the further out they are
-        channel_penalty_scaling = torch.sigmoid(
-            torch.arange(num_hidden_channels, device=self.hidden_channels.device)
-            - self.hidden_channels
+    def get_hidden_channel_caps(self):
+        num_channels = self.bn1.num_features
+        channel_caps = (
+            torch.sigmoid(
+                self.hidden_channels
+                - torch.arange(num_channels, device=self.hidden_channels.device)
+            )
+            * MAX_CAP_VAL
         )
-
-        # hidden_channels correspond to weight dim 0 for conv1
-        conv1_channel_norms = LA.vector_norm(self.conv1.weight, dim=(1, 2, 3))
-        conv1_penalty = torch.sum(conv1_channel_norms * channel_penalty_scaling)
-
-        # hidden_channels correspond to weight dim 1 for conv2
-        conv2_channel_norms = LA.vector_norm(self.conv2.weight, dim=(0, 2, 3))
-        conv2_penalty = torch.sum(conv2_channel_norms * channel_penalty_scaling)
-
-        return conv1_penalty + conv2_penalty
+        return channel_caps
 
     def forward(self, x):
-        conv1 = scale_elastic_channels(self.conv1(x), self.hidden_channels)
+        channel_caps = self.get_hidden_channel_caps()
+        conv1 = self.conv1(x, out_channel_caps=channel_caps)
         out = F.relu(self.bn1(conv1))
-        out = self.bn2(self.conv2(out))
+        out = self.bn2(self.conv2(out, in_channel_caps=channel_caps))
         if self.shortcut:
             out += self.shortcut(x)
         else:
@@ -138,12 +137,6 @@ class ElasticResNet(nn.Module):
             self.blocks.append(block)
             self.in_channels = channels
         return nn.Sequential(*layers)
-
-    def get_conv_weight_penalty(self):
-        penalties = torch.stack(
-            [block.get_conv_weight_penalty() for block in self.blocks]
-        )
-        return torch.sum(penalties)
 
     def get_hidden_channels_penalty(self):
         # directly penalize the number of hidden channels in the block

@@ -1,9 +1,28 @@
 import math
+from typing import Optional
 import torch
+from torch import Tensor
 from torch.nn import Conv2d, init, Parameter
 
-# This feels slightly sketchy, since pytorch might change the way Conv2d is implemented in a future version...
+
 class ElasticConv2d(Conv2d):
+    # This feels slightly sketchy, since pytorch might change the way Conv2d is implemented in a future version...
+    def forward(
+        self,
+        input: Tensor,
+        in_channel_caps: Optional[Tensor] = None,
+        out_channel_caps: Optional[Tensor] = None,
+    ) -> Tensor:
+        weight = self.weight
+        bias = self.bias
+        if in_channel_caps is not None:
+            weight = torch.minimum(weight, in_channel_caps[None, :, None, None])
+        if out_channel_caps is not None:
+            weight = torch.minimum(weight, out_channel_caps[:, None, None, None])
+            if bias is not None:
+                bias = torch.minimum(bias, out_channel_caps)
+        return self._conv_forward(input, weight, bias)
+
     def update_channels(
         self,
         in_channels: int = None,
