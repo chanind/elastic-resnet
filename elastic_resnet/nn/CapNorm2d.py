@@ -22,7 +22,6 @@ class _CapNorm(Module):
     def __init__(
         self,
         num_features: int,
-        eps: float = 1e-5,
         momentum: float = 0.1,
         track_running_stats: bool = True,
         device=None,
@@ -31,7 +30,6 @@ class _CapNorm(Module):
         self.factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_features = num_features
-        self.eps = eps
         self.momentum = momentum
         self.track_running_stats = track_running_stats
         self.setup_running_stats()
@@ -124,7 +122,6 @@ class _CapNorm(Module):
             self.running_var if not self.training or self.track_running_stats else None,
             training=bn_training,
             momentum=exponential_average_factor,
-            eps=self.eps,
         )
 
     def update_num_features(self, num_features: int) -> bool:
